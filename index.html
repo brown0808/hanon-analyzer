@@ -587,7 +587,7 @@ function alignOverlap(midiNotes, scoreNotes, margin = 0.1) {
   const extra = midiNotes.filter((_, i) => !usedMidi.has(i)).length;
   const missing = scoreNotes.filter((_, i) => !usedScore.has(i)).length;
 
-  return { matches, extra, missing, shift: bestShift };
+  return { matches, extra, missing, bestShift, bestCount };
 }
 
 // ============================================================
@@ -834,6 +834,17 @@ function hideError() {
   document.getElementById('errorMsg').classList.add('hidden');
 }
 
+function showDebug(text) {
+  let el = document.getElementById('debugPanel');
+  if (!el) {
+    el = document.createElement('pre');
+    el.id = 'debugPanel';
+    el.style.cssText = 'background:#f0f4ff;border:1px solid #b0c4ff;border-radius:0.5rem;padding:0.75rem 1rem;font-size:0.78rem;color:#334;max-width:900px;margin:0 auto 1rem;white-space:pre-wrap;word-break:break-all;';
+    document.getElementById('errorMsg').insertAdjacentElement('afterend', el);
+  }
+  el.textContent = '🔍 診断情報\n' + text;
+}
+
 async function analyze() {
   hideError();
   setVisible('statsPanel', false);
@@ -878,7 +889,18 @@ async function analyze() {
     const midiNorm = midiNotesWithOffset.map(n => ({ ...n, time: n.time - minTime, offset: n.offset - minTime }));
 
     // Match
-    const { matches, extra, missing } = alignOverlap(midiNorm, scoreNotes);
+    const { matches, extra, missing, bestShift, bestCount } = alignOverlap(midiNorm, scoreNotes);
+
+    // Debug panel
+    const dbg = [
+      `MIDIノート数: ${midiNotes.length}`,
+      `検出BPM: ${detectedBpm.toFixed(1)}　使用BPM: ${bpm.toFixed(1)}`,
+      `MIDI先頭3音: ${midiNorm.slice(0,3).map(n=>`pitch=${n.pitch} t=${n.time.toFixed(3)}`).join(' / ')}`,
+      `スコア先頭3音: ${scoreNotes.slice(0,3).map(n=>`pitch=${n.pitch} onset=${n.onset.toFixed(3)}`).join(' / ')}`,
+      `最良シフト: ${bestShift?.toFixed(2)}s　シフト時マッチ数: ${bestCount}`,
+      `最終マッチ数: ${matches.length} / ${scoreNotes.length}`,
+    ].join('\n');
+    showDebug(dbg);
 
     if (matches.length === 0) throw new Error('マッチするノートが見つかりませんでした。ハノン番号やテンポを確認してください。');
 
