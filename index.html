@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ハノン分析ツール</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #fffdf7;
+      --card: #ffffff;
+      --text: #3b2f2f;
+      --accent: #8daa00;
+      --accent-light: #c8e6a0;
+      --muted: #a89a8a;
+      --border: #e8ddd0;
+      --shadow: 0 2px 12px rgba(59,47,47,0.08);
+      --radius: 1rem;
+
+      --dur-main: #90caf9;
+      --dur-fill: #bbdefb;
+      --dur-axis: #64b5f6;
+      --dur-font: #1565c0;
+
+      --von-main: #f48fb1;
+      --von-fill: #f8bbd0;
+      --von-axis: #f06292;
+      --von-font: #ad1457;
+
+      --vof-main: #a5d6a7;
+      --vof-fill: #c8e6c9;
+      --vof-axis: #81c784;
+      --vof-font: #2e7d32;
+
+      --rh-color: #f06292;
+      --lh-color: #64b5f6;
+    }
+
+    body {
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1.5rem 1rem 4rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 0.4rem;
+      font-size: 0.9rem;
+    }
+
+    .panel {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 0.75rem;
+      align-items: end;
+    }
+
+    @media (max-width: 600px) {
+      .input-grid { grid-template-columns: 1fr 1fr; }
+      .input-grid .analyze-btn { grid-column: 1 / -1; }
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+      letter-spacing: 0.04em;
+    }
+
+    .file-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1rem;
+      background: var(--bg);
+      border: 2px dashed var(--border);
+      border-radius: 0.6rem;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--muted);
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .file-label:hover { border-color: var(--accent); color: var(--text); }
+    .file-label.has-file { border-color: var(--accent); color: var(--text); border-style: solid; }
+
+    input[type="file"] { display: none; }
+
+    input[type="number"] {
+      width: 90px;
+      padding: 0.55rem 0.75rem;
+      border: 2px solid var(--border);
+      border-radius: 0.6rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      background: var(--bg);
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .analyze-btn {
+      padding: 0.6rem 1.6rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 0.6rem;
+      font-family: inherit;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .analyze-btn:hover { opacity: 0.88; }
+    .analyze-btn:active { transform: scale(0.97); }
+    .analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .stats-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .stat-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.5rem 1rem;
+      min-width: 100px;
+    }
+
+    .stat-chip .val {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-chip .lbl {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+
+    .ioi-row {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+
+    .ioi-card {
+      flex: 1;
+      min-width: 140px;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1.2rem;
+      color: white;
+      font-weight: 700;
+    }
+
+    .ioi-card.rh { background: var(--rh-color); }
+    .ioi-card.lh { background: var(--lh-color); }
+
+    .ioi-card .ioi-val {
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .ioi-card .ioi-lbl {
+      font-size: 0.75rem;
+      opacity: 0.85;
+      margin-top: 0.2rem;
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+    }
+
+    @media (max-width: 550px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .chart-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .chart-card-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    .chart-card-title.dur { color: var(--dur-font); }
+    .chart-card-title.von { color: var(--von-font); }
+    .chart-card-title.vof { color: var(--vof-font); }
+
+    .radar-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      max-width: 900px;
+      margin: 0 auto 1.25rem;
+    }
+
+    @media (max-width: 550px) { .radar-row { grid-template-columns: 1fr; } }
+
+    .scatter-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      padding: 1.25rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .hidden { display: none; }
+
+    .error-msg {
+      background: #fff3f3;
+      border: 1px solid #ffb3b3;
+      border-radius: 0.5rem;
+      color: #c0392b;
+      padding: 0.75rem 1rem;
+      font-size: 0.88rem;
+      max-width: 900px;
+      margin: 0 auto 1rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    canvas { max-height: 260px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ハノン分析ツール</h1>
+  <p>MIDIを読み込んで、指ごとのリズム・強さのばらつきを可視化します</p>
+</header>
+
+<!-- 入力パネル -->
+<div class="panel">
+  <div class="input-grid">
+    <div>
+      <label for="midiFile">MIDIファイル</label>
+      <label class="file-label" id="fileLabel" for="midiFile">
+        <span>📂</span><span id="fileName">ファイルを選択...</span>
+      </label>
+      <input type="file" id="midiFile" accept=".mid,.midi">
+    </div>
+    <div>
+      <label for="hanonNum">ハノン番号</label>
+      <input type="number" id="hanonNum" min="1" max="20" value="1" placeholder="1〜20">
+    </div>
+    <div>
+      <label for="tempoBpm">テンポ BPM <span style="font-weight:400">(省略可)</span></label>
+      <input type="number" id="tempoBpm" min="20" max="300" placeholder="自動">
+    </div>
+    <button class="analyze-btn" id="analyzeBtn" disabled>分析する</button>
+  </div>
+</div>
+
+<!-- エラー表示 -->
+<div class="error-msg hidden" id="errorMsg"></div>
+
+<!-- ローディング -->
+<div class="loading hidden" id="loadingMsg">解析中...</div>
+
+<!-- 統計サマリ -->
+<div class="panel hidden" id="statsPanel">
+  <div class="section-title">解析結果</div>
+  <div class="stats-row" id="statsRow"></div>
+  <div class="ioi-row" id="ioiRow"></div>
+</div>
+
+<!-- レーダチャート (Duration) -->
+<div class="radar-row hidden" id="durRow">
+  <div class="chart-card">
+    <div class="chart-card-title dur">左手 ─ 音符長ばらつき</div>
+    <canvas id="chartLD"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="chart-card-title dur">右手 ─ 音符長ばらつき</div>
+    <canvas id="chartRD"></canvas>
+  </div>
+</div>
+
+<!-- レーダチャート (Velocity On) -->
+<div class="radar-row hidden" id="vonRow">
+  <div class="chart-card">
+    <div class="chart-card-title von">左手 ─ 押す強さばらつき</div>
+    <canvas id="chartLV"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="chart-card-title von">右手 ─ 押す強さばらつき</div>
+    <canvas id="chartRV"></canvas>
+  </div>
+</div>
+
+<!-- レーダチャート (Velocity Off) -->
+<div class="radar-row hidden" id="vofRow">
+  <div class="chart-card">
+    <div class="chart-card-title vof">左手 ─ 離す強さばらつき</div>
+    <canvas id="chartLVoff"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="chart-card-title vof">右手 ─ 離す強さばらつき</div>
+    <canvas id="chartRVoff"></canvas>
+  </div>
+</div>
+
+<!-- タイミング偏差チャート -->
+<div class="scatter-card hidden" id="scatterCard">
+  <div class="section-title">タイミング偏差 (ms)</div>
+  <canvas id="chartScatter" style="max-height:220px"></canvas>
+</div>
+
+<script>
+// ============================================================
+// MIDI Parser (vanilla JS)
+// ============================================================
+function parseMidi(buffer) {
+  const dv = new DataView(buffer);
+  let pos = 0;
+
+  function readUint16() { const v = dv.getUint16(pos); pos += 2; return v; }
+  function readUint32() { const v = dv.getUint32(pos); pos += 4; return v; }
+  function readVarLen() {
+    let v = 0, b;
+    do { b = dv.getUint8(pos++); v = (v << 7) | (b & 0x7f); } while (b & 0x80);
+    return v;
+  }
+
+  // Header chunk
+  pos += 4; // MThd
+  pos += 4; // length = 6
+  const format = readUint16();
+  const numTracks = readUint16();
+  const ppq = readUint16();
+
+  const allEvents = [];
+
+  for (let t = 0; t < numTracks; t++) {
+    pos += 4; // MTrk
+    const trackLen = readUint32();
+    const endPos = pos + trackLen;
+    let tick = 0;
+    let lastStatus = 0;
+
+    while (pos < endPos) {
+      const delta = readVarLen();
+      tick += delta;
+
+      let status = dv.getUint8(pos);
+      if (status < 0x80) {
+        status = lastStatus;
+      } else {
+        pos++;
+        if (status < 0xf0) lastStatus = status;
+      }
+
+      const type = status & 0xf0;
+
+      if (type === 0x90 || type === 0x80) {
+        const pitch = dv.getUint8(pos++);
+        const vel = dv.getUint8(pos++);
+        const isOn = type === 0x90 && vel > 0;
+        allEvents.push({ tick, kind: isOn ? 'on' : 'off', pitch, vel, track: t });
+      } else if (type === 0xa0) {
+        pos += 2;
+      } else if (type === 0xb0) {
+        pos += 2;
+      } else if (type === 0xc0) {
+        pos += 1;
+      } else if (type === 0xd0) {
+        pos += 1;
+      } else if (type === 0xe0) {
+        pos += 2;
+      } else if (status === 0xff) {
+        const metaType = dv.getUint8(pos++);
+        const metaLen = readVarLen();
+        if (metaType === 0x51 && metaLen === 3) {
+          const micros = (dv.getUint8(pos) << 16) | (dv.getUint8(pos + 1) << 8) | dv.getUint8(pos + 2);
+          allEvents.push({ tick, kind: 'tempo', bpm: 60000000 / micros });
+        }
+        pos += metaLen;
+      } else if (status === 0xf0 || status === 0xf7) {
+        const sysLen = readVarLen();
+        pos += sysLen;
+      } else {
+        // unknown — skip 1 byte to avoid infinite loop
+        pos++;
+      }
+    }
+    pos = endPos;
+  }
+
+  // Build tempo map
+  const tempoMap = [{ tick: 0, micros: 500000 }];
+  for (const e of allEvents) {
+    if (e.kind === 'tempo') {
+      const micros = Math.round(60000000 / e.bpm);
+      tempoMap.push({ tick: e.tick, micros });
+    }
+  }
+  tempoMap.sort((a, b) => a.tick - b.tick);
+
+  // Use tempo at first note onset (handles count-in at different tempo)
+  const firstNoteTick = allEvents.find(e => e.kind === 'on')?.tick || 0;
+  let perfMicros = 500000;
+  for (const entry of tempoMap) {
+    if (entry.tick > firstNoteTick) break;
+    perfMicros = entry.micros;
+  }
+  const detectedBpm = 60000000 / perfMicros;
+
+  function tickToSec(targetTick) {
+    let sec = 0, prevTick = 0, micros = 500000;
+    for (const entry of tempoMap) {
+      if (entry.tick > targetTick) break;
+      sec += (entry.tick - prevTick) * micros / ppq / 1e6;
+      prevTick = entry.tick;
+      micros = entry.micros;
+    }
+    sec += (targetTick - prevTick) * micros / ppq / 1e6;
+    return sec;
+  }
+
+  // Build note list
+  const pending = {};
+  const notes = [];
+  const noteEvents = allEvents.filter(e => e.kind === 'on' || e.kind === 'off');
+  noteEvents.sort((a, b) => a.tick - b.tick || (a.kind === 'off' ? -1 : 1));
+
+  for (const e of noteEvents) {
+    const key = e.pitch;
+    if (e.kind === 'on') {
+      if (!pending[key]) pending[key] = [];
+      pending[key].push({ tick: e.tick, vel: e.vel });
+    } else {
+      if (pending[key] && pending[key].length > 0) {
+        const start = pending[key].shift();
+        const startSec = tickToSec(start.tick);
+        const endSec = tickToSec(e.tick);
+        notes.push({
+          pitch: e.pitch,
+          time: startSec,
+          duration: Math.max(0, endSec - startSec),
+          velocity: start.vel,
+          velocityOff: e.vel,
+        });
+      }
+    }
+  }
+
+  notes.sort((a, b) => a.time - b.time);
+  return { notes, bpm: detectedBpm };
+}
+
+// ============================================================
+// Score Matching (align_overlap port)
+// ============================================================
+function alignOverlap(midiNotes, scoreNotes, margin = 0.1) {
+  const shiftMin = -2.0, shiftMax = 2.0, shiftStep = 0.05;
+  let bestShift = 0, bestCount = -1;
+
+  for (let shift = shiftMin; shift <= shiftMax + 1e-9; shift += shiftStep) {
+    let count = 0;
+    const usedMidi = new Set();
+    for (const sn of scoreNotes) {
+      const sOnset = sn.onset + shift;
+      const sOffset = sn.offset + shift;
+      for (let mi = 0; mi < midiNotes.length; mi++) {
+        if (usedMidi.has(mi)) continue;
+        const mn = midiNotes[mi];
+        if (mn.pitch !== sn.pitch) continue;
+        const overlap = Math.min(sOffset, mn.offset) - Math.max(sOnset, mn.onset);
+        if (overlap >= -margin) { count++; usedMidi.add(mi); break; }
+      }
+    }
+    if (count > bestCount) { bestCount = count; bestShift = shift; }
+  }
+
+  // Final match with bestShift
+  const usedMidi = new Set();
+  const usedScore = new Set();
+  const matches = [];
+
+  for (let si = 0; si < scoreNotes.length; si++) {
+    const sn = scoreNotes[si];
+    const sOnset = sn.onset + bestShift;
+    const sOffset = sn.offset + bestShift;
+    for (let mi = 0; mi < midiNotes.length; mi++) {
+      if (usedMidi.has(mi)) continue;
+      const mn = midiNotes[mi];
+      if (mn.pitch !== sn.pitch) continue;
+      const overlap = Math.min(sOffset, mn.offset) - Math.max(sOnset, mn.onset);
+      if (overlap >= -margin) {
+        matches.push({
+          partId: sn.partId,
+          finger: sn.finger,
+          pitch: mn.pitch,
+          midiTime: mn.time,
+          midiDuration: mn.duration,
+          midiVelocity: mn.velocity,
+          midiVelocityOff: mn.velocityOff,
+          scoreTime: sn.onset,
+          timeDiff: mn.time - sOnset,
+          status: 'MATCH'
+        });
+        usedMidi.add(mi);
+        usedScore.add(si);
+        break;
+      }
+    }
+  }
+
+  const extra = midiNotes.filter((_, i) => !usedMidi.has(i)).length;
+  const missing = scoreNotes.filter((_, i) => !usedScore.has(i)).length;
+
+  return { matches, extra, missing, shift: bestShift };
+}
+
+// ============================================================
+// Stats Computation
+// ============================================================
+function mean(arr) {
+  if (!arr.length) return 0;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+function std(arr) {
+  if (arr.length < 2) return 0;
+  const m = mean(arr);
+  return Math.sqrt(arr.reduce((a, x) => a + (x - m) ** 2, 0) / (arr.length - 1));
+}
+function cv(arr) {
+  const m = mean(arr);
+  return m > 0 ? std(arr) / m : 0;
+}
+
+function computeStats(matches) {
+  const groups = {};
+  for (const m of matches) {
+    const key = `${m.partId}_${m.finger}`;
+    if (!groups[key]) groups[key] = { durations: [], velocities: [], velocitiesOff: [], times: [], partId: m.partId, finger: m.finger };
+    groups[key].durations.push(m.midiDuration);
+    groups[key].velocities.push(m.midiVelocity);
+    groups[key].velocitiesOff.push(m.midiVelocityOff);
+    groups[key].times.push(m.midiTime);
+  }
+
+  const stats = {};
+  for (const [key, data] of Object.entries(groups)) {
+    stats[key] = {
+      partId: data.partId,
+      finger: data.finger,
+      count: data.durations.length,
+      durMean: mean(data.durations),
+      durStd: std(data.durations),
+      velMean: mean(data.velocities),
+      velStd: std(data.velocities),
+      velOffMean: mean(data.velocitiesOff),
+      velOffStd: std(data.velocitiesOff),
+    };
+  }
+
+  // IOI per hand
+  const ioi = {};
+  for (const partId of [0, 1]) {
+    const times = matches.filter(m => m.partId === partId).map(m => m.midiTime).sort((a, b) => a - b);
+    if (times.length > 1) {
+      const iois = times.slice(1).map((t, i) => t - times[i]);
+      ioi[partId] = { mean: mean(iois), std: std(iois), cv: cv(iois) };
+    } else {
+      ioi[partId] = { mean: 0, std: 0, cv: 0 };
+    }
+  }
+
+  return { stats, ioi };
+}
+
+// ============================================================
+// Chart helpers
+// ============================================================
+const chartInstances = {};
+
+function destroyChart(id) {
+  if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function fingersFor(stats, partId, getVal) {
+  return [1, 2, 3, 4, 5].map(f => {
+    const s = stats[`${partId}_${f}`];
+    return s ? (getVal(s) || 0) : 0;
+  });
+}
+
+function makeRadarDataset(values, mainColor, fillColor, label) {
+  return {
+    label,
+    data: [...values, values[0]],
+    borderColor: mainColor,
+    backgroundColor: fillColor + '55',
+    pointBackgroundColor: mainColor,
+    pointRadius: 4,
+    borderWidth: 2,
+    fill: true,
+  };
+}
+
+function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillColor, axisColor, fontColor, tickMax, tickStep) {
+  destroyChart(canvasId);
+  const labels = ['指1', '指2', '指3', '指4', '指5'];
+
+  chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
+    type: 'radar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'ばらつき (std)',
+          data: valuesStd,
+          borderColor: mainColor,
+          backgroundColor: fillColor + '55',
+          pointBackgroundColor: mainColor,
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1.5,
+          pointRadius: 5,
+          borderWidth: 2.2,
+          fill: true,
+        },
+        {
+          label: '理想',
+          data: new Array(5).fill(idealValue),
+          borderColor: fontColor + '88',
+          borderDash: [5, 4],
+          borderWidth: 1.5,
+          pointRadius: 0,
+          backgroundColor: 'transparent',
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        r: {
+          min: 0,
+          max: tickMax,
+          ticks: {
+            stepSize: tickStep,
+            color: fontColor,
+            font: { family: "'M PLUS Rounded 1c', sans-serif", size: 10 },
+            backdropColor: 'transparent',
+          },
+          pointLabels: {
+            color: fontColor,
+            font: { family: "'M PLUS Rounded 1c', sans-serif", size: 13, weight: 'bold' },
+          },
+          grid: { color: axisColor + '33' },
+          angleLines: { color: axisColor + '55' },
+        }
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: fontColor,
+            font: { family: "'M PLUS Rounded 1c', sans-serif", size: 11 },
+            boxWidth: 16,
+            padding: 10,
+          }
+        }
+      }
+    }
+  });
+}
+
+function makeScatterChart(matches) {
+  destroyChart('chartScatter');
+  const rhData = matches.filter(m => m.partId === 0).map(m => ({ x: m.midiTime, y: m.timeDiff * 1000 }));
+  const lhData = matches.filter(m => m.partId === 1).map(m => ({ x: m.midiTime, y: m.timeDiff * 1000 }));
+
+  chartInstances['chartScatter'] = new Chart(document.getElementById('chartScatter'), {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: '右手',
+          data: rhData,
+          backgroundColor: '#f06292aa',
+          pointRadius: 3,
+        },
+        {
+          label: '左手',
+          data: lhData,
+          backgroundColor: '#64b5f6aa',
+          pointRadius: 3,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          labels: {
+            color: '#3b2f2f',
+            font: { family: "'M PLUS Rounded 1c', sans-serif", size: 11 },
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: '演奏時間 (秒)', color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
+          ticks: { color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
+          grid: { color: '#e8ddd0' },
+        },
+        y: {
+          title: { display: true, text: 'タイミング偏差 (ms)', color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
+          ticks: { color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
+          grid: { color: '#e8ddd0' },
+        }
+      }
+    }
+  });
+}
+
+// ============================================================
+// UI Logic
+// ============================================================
+let midiBuffer = null;
+let scoresData = null;
+
+async function loadScores() {
+  const res = await fetch('data/scores.json');
+  scoresData = await res.json();
+}
+
+document.getElementById('midiFile').addEventListener('change', function () {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    midiBuffer = e.target.result;
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileLabel').classList.add('has-file');
+    document.getElementById('analyzeBtn').disabled = false;
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('analyzeBtn').addEventListener('click', analyze);
+
+function setVisible(id, visible) {
+  document.getElementById(id).classList.toggle('hidden', !visible);
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function hideError() {
+  document.getElementById('errorMsg').classList.add('hidden');
+}
+
+async function analyze() {
+  hideError();
+  setVisible('statsPanel', false);
+  setVisible('durRow', false);
+  setVisible('vonRow', false);
+  setVisible('vofRow', false);
+  setVisible('scatterCard', false);
+  setVisible('loadingMsg', true);
+  document.getElementById('analyzeBtn').disabled = true;
+
+  try {
+    if (!midiBuffer) throw new Error('MIDIファイルを選択してください。');
+    if (!scoresData) throw new Error('楽譜データの読み込みに失敗しました。');
+
+    const hanonNum = parseInt(document.getElementById('hanonNum').value);
+    if (isNaN(hanonNum) || hanonNum < 1 || hanonNum > 20) throw new Error('ハノン番号は1〜20で入力してください。');
+
+    const scoreRaw = scoresData[String(hanonNum)];
+    if (!scoreRaw) throw new Error(`ハノン${hanonNum}番の楽譜データが見つかりません。`);
+
+    // Parse MIDI
+    const { notes: midiNotes, bpm: detectedBpm } = parseMidi(midiBuffer);
+
+    const userTempo = parseFloat(document.getElementById('tempoBpm').value);
+    const bpm = (!isNaN(userTempo) && userTempo > 0) ? userTempo : detectedBpm;
+    const secPerBeat = 60 / bpm;
+
+    // Convert score notes to time in seconds
+    const scoreNotes = scoreRaw.map(([partId, pitch, timeBeat, durBeat, finger]) => ({
+      partId,
+      pitch,
+      onset: timeBeat * secPerBeat,
+      offset: (timeBeat + durBeat) * secPerBeat,
+      finger,
+    }));
+
+    // Add offset/duration to MIDI notes
+    const midiNotesWithOffset = midiNotes.map(n => ({ ...n, offset: n.time + n.duration }));
+
+    // Normalize MIDI start time to 0
+    const minTime = midiNotesWithOffset.length > 0 ? Math.min(...midiNotesWithOffset.map(n => n.time)) : 0;
+    const midiNorm = midiNotesWithOffset.map(n => ({ ...n, time: n.time - minTime, offset: n.offset - minTime }));
+
+    // Match
+    const { matches, extra, missing } = alignOverlap(midiNorm, scoreNotes);
+
+    if (matches.length === 0) throw new Error('マッチするノートが見つかりませんでした。ハノン番号やテンポを確認してください。');
+
+    // Compute stats
+    const { stats, ioi } = computeStats(matches);
+
+    // Update summary
+    const total = scoreNotes.length;
+    const matched = matches.length;
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat-chip"><div class="val">${matched} / ${total}</div><div class="lbl">マッチ</div></div>
+      <div class="stat-chip"><div class="val">${extra}</div><div class="lbl">余分な音 (EXTRA)</div></div>
+      <div class="stat-chip"><div class="val">${missing}</div><div class="lbl">抜け (MISSING)</div></div>
+      <div class="stat-chip"><div class="val">${bpm.toFixed(0)}</div><div class="lbl">テンポ BPM</div></div>
+    `;
+    document.getElementById('ioiRow').innerHTML = `
+      <div class="ioi-card rh">
+        <div class="ioi-val">${(ioi[0].cv * 100).toFixed(1)}%</div>
+        <div class="ioi-lbl">右手 IOI ばらつき</div>
+      </div>
+      <div class="ioi-card lh">
+        <div class="ioi-val">${(ioi[1].cv * 100).toFixed(1)}%</div>
+        <div class="ioi-lbl">左手 IOI ばらつき</div>
+      </div>
+    `;
+
+    // Draw radar charts
+    // Duration (std in seconds, max ~0.15s)
+    const rdValues = fingersFor(stats, 0, s => s.durStd);
+    const ldValues = fingersFor(stats, 1, s => s.durStd);
+    makeRadarChart('chartLD', '左手 Duration', ldValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.15, 0.03);
+    makeRadarChart('chartRD', '右手 Duration', rdValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.15, 0.03);
+
+    // Velocity On (std, max ~40)
+    const rvValues = fingersFor(stats, 0, s => s.velStd);
+    const lvValues = fingersFor(stats, 1, s => s.velStd);
+    makeRadarChart('chartLV', '左手 Velocity On', lvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 40, 10);
+    makeRadarChart('chartRV', '右手 Velocity On', rvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 40, 10);
+
+    // Velocity Off (std, max ~40)
+    const rvoffValues = fingersFor(stats, 0, s => s.velOffStd);
+    const lvoffValues = fingersFor(stats, 1, s => s.velOffStd);
+    makeRadarChart('chartLVoff', '左手 Velocity Off', lvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 40, 10);
+    makeRadarChart('chartRVoff', '右手 Velocity Off', rvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 40, 10);
+
+    // Scatter
+    makeScatterChart(matches);
+
+    // Show panels
+    setVisible('statsPanel', true);
+    setVisible('durRow', true);
+    setVisible('vonRow', true);
+    setVisible('vofRow', true);
+    setVisible('scatterCard', true);
+
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    setVisible('loadingMsg', false);
+    document.getElementById('analyzeBtn').disabled = false;
+  }
+}
+
+// Load scores on startup
+loadScores().catch(() => showError('楽譜データ (data/scores.json) の読み込みに失敗しました。ローカルで開く場合は HTTP サーバー経由でアクセスしてください。'));
+</script>
+</body>
+</html>
