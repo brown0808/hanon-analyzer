@@ -225,47 +225,46 @@
       margin-bottom: 1rem;
     }
 
-    .charts-grid {
+    /* レーダー行: 2枚を1枚のカードとして扱う */
+    .radar-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1.25rem;
-    }
-
-    @media (max-width: 550px) {
-      .charts-grid { grid-template-columns: 1fr; }
-    }
-
-    .chart-card {
+      gap: 0;
+      max-width: 900px;
+      margin: 0 auto 1.5rem;
       background: var(--card);
       border-radius: var(--radius);
       box-shadow: var(--shadow);
       border: 1px solid var(--border);
-      padding: 1rem;
-      max-width: 900px;
-      margin-left: auto;
-      margin-right: auto;
+      overflow: hidden;
+    }
+
+    .chart-card {
+      background: var(--card);
+      padding: 0.75rem 1rem 1rem;
+      min-width: 0;
+    }
+
+    /* 左右の境界線 */
+    .radar-row .chart-card:first-child {
+      border-right: 1px solid var(--border);
+    }
+
+    @media (max-width: 550px) {
+      .radar-row { grid-template-columns: 1fr; }
+      .radar-row .chart-card:first-child { border-right: none; border-bottom: 1px solid var(--border); }
     }
 
     .chart-card-title {
       font-size: 0.8rem;
       font-weight: 700;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.4rem;
       text-align: center;
     }
 
     .chart-card-title.dur { color: var(--dur-font); }
     .chart-card-title.von { color: var(--von-font); }
     .chart-card-title.vof { color: var(--vof-font); }
-
-    .radar-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      max-width: 900px;
-      margin: 0 auto 1.25rem;
-    }
-
-    @media (max-width: 550px) { .radar-row { grid-template-columns: 1fr; } }
 
     .scatter-card {
       background: var(--card);
@@ -297,7 +296,7 @@
       font-size: 0.9rem;
     }
 
-    .radar-canvas { height: 340px !important; }
+    .radar-canvas { width: 100% !important; display: block; }
     .scatter-canvas { max-height: 220px; }
   </style>
 </head>
@@ -726,6 +725,7 @@ function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillC
     },
     options: {
       responsive: true,
+      aspectRatio: 1,
       scales: {
         r: {
           min: 0,
