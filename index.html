@@ -266,15 +266,6 @@
     .chart-card-title.von { color: var(--von-font); }
     .chart-card-title.vof { color: var(--vof-font); }
 
-    .scatter-card {
-      background: var(--card);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-      padding: 1.25rem;
-      max-width: 900px;
-      margin: 0 auto;
-    }
 
     .hidden { display: none; }
 
@@ -297,7 +288,6 @@
     }
 
     .radar-canvas { width: 100% !important; display: block; }
-    .scatter-canvas { max-height: 220px; }
   </style>
 </head>
 <body>
@@ -376,12 +366,6 @@
     <div class="chart-card-title vof">右手 ─ 離す強さばらつき</div>
     <canvas id="chartRVoff" class="radar-canvas"></canvas>
   </div>
-</div>
-
-<!-- タイミング偏差チャート -->
-<div class="scatter-card hidden" id="scatterCard">
-  <div class="section-title">タイミング偏差 (ms)</div>
-  <canvas id="chartScatter" class="scatter-canvas"></canvas>
 </div>
 
 <script>
@@ -664,7 +648,7 @@ function fingersFor(stats, partId, getVal) {
   });
 }
 
-function makeRadarDataset(values, mainColor, fillColor, label) {
+function makeRadarDataset_unused(values, mainColor, fillColor, label) {
   return {
     label,
     data: [...values, values[0]],
@@ -688,11 +672,15 @@ function reorderForHand(values, isRight) {
   return order.map(i => values[i]);
 }
 
-function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillColor, axisColor, fontColor, tickMax, tickStep, isRight) {
+function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, mainColor, fillColor, axisColor, fontColor, tickMax, tickStep, isRight) {
   destroyChart(canvasId);
   const fingerNums = isRight ? RH_ORDER.map(i => i + 1) : LH_ORDER.map(i => i + 1);
   const labels = fingerNums.map(n => `指${n}`);
-  const data = reorderForHand(valuesStd, isRight);
+
+  const meanR  = reorderForHand(valuesMean, isRight);
+  const stdR   = reorderForHand(valuesStd,  isRight);
+  const plus1s = meanR.map((m, i) => Math.min(tickMax, m + stdR[i]));
+  const plus2s = meanR.map((m, i) => Math.min(tickMax, m + 2 * stdR[i]));
 
   chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
     type: 'radar',
@@ -700,23 +688,41 @@ function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillC
       labels,
       datasets: [
         {
-          label: 'ばらつき (std)',
-          data,
+          label: '平均+2σ',
+          data: plus2s,
+          borderColor: mainColor + '55',
+          backgroundColor: fillColor + '28',
+          borderWidth: 1,
+          pointRadius: 0,
+          fill: 'origin',
+        },
+        {
+          label: '平均+σ',
+          data: plus1s,
+          borderColor: mainColor + '99',
+          backgroundColor: fillColor + '50',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: 'origin',
+        },
+        {
+          label: '平均',
+          data: meanR,
           borderColor: mainColor,
-          backgroundColor: fillColor + '55',
-          pointBackgroundColor: mainColor,
+          backgroundColor: fillColor + '80',
+          borderWidth: 2.5,
+          pointBackgroundColor: axisColor,
           pointBorderColor: '#fff',
           pointBorderWidth: 1.5,
           pointRadius: 5,
-          borderWidth: 2.2,
-          fill: true,
+          fill: 'origin',
         },
         {
           label: '理想',
-          data: new Array(5).fill(idealValue),  // ideal is uniform, no reorder needed
-          borderColor: fontColor + '88',
+          data: new Array(5).fill(idealValue),
+          borderColor: fontColor + 'aa',
           borderDash: [5, 4],
-          borderWidth: 1.5,
+          borderWidth: 1.6,
           pointRadius: 0,
           backgroundColor: 'transparent',
           fill: false,
@@ -750,8 +756,8 @@ function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillC
           labels: {
             color: fontColor,
             font: { family: "'M PLUS Rounded 1c', sans-serif", size: 11 },
-            boxWidth: 16,
-            padding: 10,
+            boxWidth: 14,
+            padding: 8,
           }
         }
       }
@@ -759,54 +765,6 @@ function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillC
   });
 }
 
-function makeScatterChart(matches) {
-  destroyChart('chartScatter');
-  const rhData = matches.filter(m => m.partId === 0).map(m => ({ x: m.midiTime, y: m.timeDiff * 1000 }));
-  const lhData = matches.filter(m => m.partId === 1).map(m => ({ x: m.midiTime, y: m.timeDiff * 1000 }));
-
-  chartInstances['chartScatter'] = new Chart(document.getElementById('chartScatter'), {
-    type: 'scatter',
-    data: {
-      datasets: [
-        {
-          label: '右手',
-          data: rhData,
-          backgroundColor: '#f06292aa',
-          pointRadius: 3,
-        },
-        {
-          label: '左手',
-          data: lhData,
-          backgroundColor: '#64b5f6aa',
-          pointRadius: 3,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: {
-          labels: {
-            color: '#3b2f2f',
-            font: { family: "'M PLUS Rounded 1c', sans-serif", size: 11 },
-          }
-        }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: '演奏時間 (秒)', color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
-          ticks: { color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
-          grid: { color: '#e8ddd0' },
-        },
-        y: {
-          title: { display: true, text: 'タイミング偏差 (ms)', color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
-          ticks: { color: '#a89a8a', font: { family: "'M PLUS Rounded 1c', sans-serif" } },
-          grid: { color: '#e8ddd0' },
-        }
-      }
-    }
-  });
-}
 
 // ============================================================
 // UI Logic
@@ -865,7 +823,6 @@ async function analyze() {
   setVisible('durRow', false);
   setVisible('vonRow', false);
   setVisible('vofRow', false);
-  setVisible('scatterCard', false);
   setVisible('loadingMsg', true);
   document.getElementById('analyzeBtn').disabled = true;
 
@@ -941,34 +898,36 @@ async function analyze() {
       </div>
     `;
 
-    // Draw radar charts
-    // Duration (std in seconds, max ~0.15s)
-    const rdValues = fingersFor(stats, 0, s => s.durStd);
-    const ldValues = fingersFor(stats, 1, s => s.durStd);
-    makeRadarChart('chartLD', '左手 Duration', ldValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, false);
-    makeRadarChart('chartRD', '右手 Duration', rdValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, true);
+    // Draw radar charts (mean + ±1σ + ±2σ bands, matching Python make_radar_charts.py)
+    // Duration (seconds, axis 0–0.5, ideal=0.25)
+    const ldMean  = fingersFor(stats, 1, s => s.durMean);
+    const ldStd   = fingersFor(stats, 1, s => s.durStd);
+    const rdMean  = fingersFor(stats, 0, s => s.durMean);
+    const rdStd   = fingersFor(stats, 0, s => s.durStd);
+    makeRadarChart('chartLD', '左手 Duration', ldMean, ldStd, 0.25, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, false);
+    makeRadarChart('chartRD', '右手 Duration', rdMean, rdStd, 0.25, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, true);
 
-    // Velocity On
-    const rvValues = fingersFor(stats, 0, s => s.velStd);
-    const lvValues = fingersFor(stats, 1, s => s.velStd);
-    makeRadarChart('chartLV', '左手 Velocity On', lvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, false);
-    makeRadarChart('chartRV', '右手 Velocity On', rvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, true);
+    // Velocity On (0–127, ideal=80)
+    const lvMean  = fingersFor(stats, 1, s => s.velMean);
+    const lvStd   = fingersFor(stats, 1, s => s.velStd);
+    const rvMean  = fingersFor(stats, 0, s => s.velMean);
+    const rvStd   = fingersFor(stats, 0, s => s.velStd);
+    makeRadarChart('chartLV', '左手 Velocity On', lvMean, lvStd, 80, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, false);
+    makeRadarChart('chartRV', '右手 Velocity On', rvMean, rvStd, 80, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, true);
 
-    // Velocity Off
-    const rvoffValues = fingersFor(stats, 0, s => s.velOffStd);
-    const lvoffValues = fingersFor(stats, 1, s => s.velOffStd);
-    makeRadarChart('chartLVoff', '左手 Velocity Off', lvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, false);
-    makeRadarChart('chartRVoff', '右手 Velocity Off', rvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, true);
-
-    // Scatter
-    makeScatterChart(matches);
+    // Velocity Off (0–127, ideal=80)
+    const lvoffMean = fingersFor(stats, 1, s => s.velOffMean);
+    const lvoffStd  = fingersFor(stats, 1, s => s.velOffStd);
+    const rvoffMean = fingersFor(stats, 0, s => s.velOffMean);
+    const rvoffStd  = fingersFor(stats, 0, s => s.velOffStd);
+    makeRadarChart('chartLVoff', '左手 Velocity Off', lvoffMean, lvoffStd, 80, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, false);
+    makeRadarChart('chartRVoff', '右手 Velocity Off', rvoffMean, rvoffStd, 80, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, true);
 
     // Show panels
     setVisible('statsPanel', true);
     setVisible('durRow', true);
     setVisible('vonRow', true);
     setVisible('vofRow', true);
-    setVisible('scatterCard', true);
 
   } catch (err) {
     showError(err.message);
