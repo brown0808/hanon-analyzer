@@ -297,7 +297,8 @@
       font-size: 0.9rem;
     }
 
-    canvas { max-height: 260px; }
+    .radar-canvas { height: 340px !important; }
+    .scatter-canvas { max-height: 220px; }
   </style>
 </head>
 <body>
@@ -346,11 +347,11 @@
 <div class="radar-row hidden" id="durRow">
   <div class="chart-card">
     <div class="chart-card-title dur">左手 ─ 音符長ばらつき</div>
-    <canvas id="chartLD"></canvas>
+    <canvas id="chartLD" class="radar-canvas"></canvas>
   </div>
   <div class="chart-card">
     <div class="chart-card-title dur">右手 ─ 音符長ばらつき</div>
-    <canvas id="chartRD"></canvas>
+    <canvas id="chartRD" class="radar-canvas"></canvas>
   </div>
 </div>
 
@@ -358,11 +359,11 @@
 <div class="radar-row hidden" id="vonRow">
   <div class="chart-card">
     <div class="chart-card-title von">左手 ─ 押す強さばらつき</div>
-    <canvas id="chartLV"></canvas>
+    <canvas id="chartLV" class="radar-canvas"></canvas>
   </div>
   <div class="chart-card">
     <div class="chart-card-title von">右手 ─ 押す強さばらつき</div>
-    <canvas id="chartRV"></canvas>
+    <canvas id="chartRV" class="radar-canvas"></canvas>
   </div>
 </div>
 
@@ -370,18 +371,18 @@
 <div class="radar-row hidden" id="vofRow">
   <div class="chart-card">
     <div class="chart-card-title vof">左手 ─ 離す強さばらつき</div>
-    <canvas id="chartLVoff"></canvas>
+    <canvas id="chartLVoff" class="radar-canvas"></canvas>
   </div>
   <div class="chart-card">
     <div class="chart-card-title vof">右手 ─ 離す強さばらつき</div>
-    <canvas id="chartRVoff"></canvas>
+    <canvas id="chartRVoff" class="radar-canvas"></canvas>
   </div>
 </div>
 
 <!-- タイミング偏差チャート -->
 <div class="scatter-card hidden" id="scatterCard">
   <div class="section-title">タイミング偏差 (ms)</div>
-  <canvas id="chartScatter" style="max-height:220px"></canvas>
+  <canvas id="chartScatter" class="scatter-canvas"></canvas>
 </div>
 
 <script>
@@ -677,9 +678,22 @@ function makeRadarDataset(values, mainColor, fillColor, label) {
   };
 }
 
-function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillColor, axisColor, fontColor, tickMax, tickStep) {
+// fingerOrder[isRight]: index order mapping finger positions to Chart.js label slots
+// Left hand:  slot[0..4] = finger [3,2,1,5,4] (0-indexed: [2,1,0,4,3])
+// Right hand: slot[0..4] = finger [3,4,5,1,2] (0-indexed: [2,3,4,0,1])
+const LH_ORDER = [2, 1, 0, 4, 3];
+const RH_ORDER = [2, 3, 4, 0, 1];
+
+function reorderForHand(values, isRight) {
+  const order = isRight ? RH_ORDER : LH_ORDER;
+  return order.map(i => values[i]);
+}
+
+function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillColor, axisColor, fontColor, tickMax, tickStep, isRight) {
   destroyChart(canvasId);
-  const labels = ['指1', '指2', '指3', '指4', '指5'];
+  const fingerNums = isRight ? RH_ORDER.map(i => i + 1) : LH_ORDER.map(i => i + 1);
+  const labels = fingerNums.map(n => `指${n}`);
+  const data = reorderForHand(valuesStd, isRight);
 
   chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
     type: 'radar',
@@ -688,7 +702,7 @@ function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillC
       datasets: [
         {
           label: 'ばらつき (std)',
-          data: valuesStd,
+          data,
           borderColor: mainColor,
           backgroundColor: fillColor + '55',
           pointBackgroundColor: mainColor,
@@ -700,7 +714,7 @@ function makeRadarChart(canvasId, title, valuesStd, idealValue, mainColor, fillC
         },
         {
           label: '理想',
-          data: new Array(5).fill(idealValue),
+          data: new Array(5).fill(idealValue),  // ideal is uniform, no reorder needed
           borderColor: fontColor + '88',
           borderDash: [5, 4],
           borderWidth: 1.5,
@@ -931,20 +945,20 @@ async function analyze() {
     // Duration (std in seconds, max ~0.15s)
     const rdValues = fingersFor(stats, 0, s => s.durStd);
     const ldValues = fingersFor(stats, 1, s => s.durStd);
-    makeRadarChart('chartLD', '左手 Duration', ldValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.15, 0.03);
-    makeRadarChart('chartRD', '右手 Duration', rdValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.15, 0.03);
+    makeRadarChart('chartLD', '左手 Duration', ldValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, false);
+    makeRadarChart('chartRD', '右手 Duration', rdValues, 0.02, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, true);
 
-    // Velocity On (std, max ~40)
+    // Velocity On
     const rvValues = fingersFor(stats, 0, s => s.velStd);
     const lvValues = fingersFor(stats, 1, s => s.velStd);
-    makeRadarChart('chartLV', '左手 Velocity On', lvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 40, 10);
-    makeRadarChart('chartRV', '右手 Velocity On', rvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 40, 10);
+    makeRadarChart('chartLV', '左手 Velocity On', lvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, false);
+    makeRadarChart('chartRV', '右手 Velocity On', rvValues, 8, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, true);
 
-    // Velocity Off (std, max ~40)
+    // Velocity Off
     const rvoffValues = fingersFor(stats, 0, s => s.velOffStd);
     const lvoffValues = fingersFor(stats, 1, s => s.velOffStd);
-    makeRadarChart('chartLVoff', '左手 Velocity Off', lvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 40, 10);
-    makeRadarChart('chartRVoff', '右手 Velocity Off', rvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 40, 10);
+    makeRadarChart('chartLVoff', '左手 Velocity Off', lvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, false);
+    makeRadarChart('chartRVoff', '右手 Velocity Off', rvoffValues, 8, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, true);
 
     // Scatter
     makeScatterChart(matches);
