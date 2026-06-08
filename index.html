@@ -543,7 +543,7 @@ function alignOverlap(midiNotes, scoreNotes, margin = 0.1) {
         if (usedMidi.has(mi)) continue;
         const mn = midiNotes[mi];
         if (mn.pitch !== sn.pitch) continue;
-        const overlap = Math.min(sOffset, mn.offset) - Math.max(sOnset, mn.onset);
+        const overlap = Math.min(sOffset, mn.offset) - Math.max(sOnset, mn.time);
         if (overlap >= -margin) { count++; usedMidi.add(mi); break; }
       }
     }
