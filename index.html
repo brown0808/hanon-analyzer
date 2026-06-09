@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>ハノン分析ツール</title>
+  <title>Hanon Analyzer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -293,29 +293,29 @@
 <body>
 
 <header>
-  <h1>ハノン分析ツール</h1>
-  <p>MIDIを読み込んで、指ごとのリズム・強さのばらつきを可視化します</p>
+  <h1>Hanon Analyzer</h1>
+  <p>Upload a MIDI file to visualize per-finger rhythm and velocity variance.</p>
 </header>
 
 <!-- 入力パネル -->
 <div class="panel">
   <div class="input-grid">
     <div>
-      <label for="midiFile">MIDIファイル</label>
+      <label for="midiFile">MIDI File</label>
       <label class="file-label" id="fileLabel" for="midiFile">
-        <span>📂</span><span id="fileName">ファイルを選択...</span>
+        <span>📂</span><span id="fileName">Choose file...</span>
       </label>
       <input type="file" id="midiFile" accept=".mid,.midi">
     </div>
     <div>
-      <label for="hanonNum">ハノン番号</label>
-      <input type="number" id="hanonNum" min="1" max="20" value="1" placeholder="1〜20">
+      <label for="hanonNum">Hanon No.</label>
+      <input type="number" id="hanonNum" min="1" max="20" value="1" placeholder="1–20">
     </div>
     <div>
-      <label for="tempoBpm">テンポ BPM <span style="font-weight:400">(省略可)</span></label>
-      <input type="number" id="tempoBpm" min="20" max="300" placeholder="自動">
+      <label for="tempoBpm">Tempo BPM <span style="font-weight:400">(optional)</span></label>
+      <input type="number" id="tempoBpm" min="20" max="300" placeholder="auto">
     </div>
-    <button class="analyze-btn" id="analyzeBtn" disabled>分析する</button>
+    <button class="analyze-btn" id="analyzeBtn" disabled>Analyze</button>
   </div>
 </div>
 
@@ -323,11 +323,11 @@
 <div class="error-msg hidden" id="errorMsg"></div>
 
 <!-- ローディング -->
-<div class="loading hidden" id="loadingMsg">解析中...</div>
+<div class="loading hidden" id="loadingMsg">Analyzing...</div>
 
 <!-- 統計サマリ -->
 <div class="panel hidden" id="statsPanel">
-  <div class="section-title">解析結果</div>
+  <div class="section-title">Results</div>
   <div class="stats-row" id="statsRow"></div>
   <div class="ioi-row" id="ioiRow"></div>
 </div>
@@ -335,11 +335,11 @@
 <!-- レーダチャート (Duration) -->
 <div class="radar-row hidden" id="durRow">
   <div class="chart-card">
-    <div class="chart-card-title dur">左手 ─ 音符長ばらつき</div>
+    <div class="chart-card-title dur">Left Hand ─ Duration</div>
     <canvas id="chartLD" class="radar-canvas"></canvas>
   </div>
   <div class="chart-card">
-    <div class="chart-card-title dur">右手 ─ 音符長ばらつき</div>
+    <div class="chart-card-title dur">Right Hand ─ Duration</div>
     <canvas id="chartRD" class="radar-canvas"></canvas>
   </div>
 </div>
@@ -347,11 +347,11 @@
 <!-- レーダチャート (Velocity On) -->
 <div class="radar-row hidden" id="vonRow">
   <div class="chart-card">
-    <div class="chart-card-title von">左手 ─ 押す強さばらつき</div>
+    <div class="chart-card-title von">Left Hand ─ Velocity On</div>
     <canvas id="chartLV" class="radar-canvas"></canvas>
   </div>
   <div class="chart-card">
-    <div class="chart-card-title von">右手 ─ 押す強さばらつき</div>
+    <div class="chart-card-title von">Right Hand ─ Velocity On</div>
     <canvas id="chartRV" class="radar-canvas"></canvas>
   </div>
 </div>
@@ -359,11 +359,11 @@
 <!-- レーダチャート (Velocity Off) -->
 <div class="radar-row hidden" id="vofRow">
   <div class="chart-card">
-    <div class="chart-card-title vof">左手 ─ 離す強さばらつき</div>
+    <div class="chart-card-title vof">Left Hand ─ Velocity Off</div>
     <canvas id="chartLVoff" class="radar-canvas"></canvas>
   </div>
   <div class="chart-card">
-    <div class="chart-card-title vof">右手 ─ 離す強さばらつき</div>
+    <div class="chart-card-title vof">Right Hand ─ Velocity Off</div>
     <canvas id="chartRVoff" class="radar-canvas"></canvas>
   </div>
 </div>
@@ -684,7 +684,7 @@ function reorderForHand(values, isRight) {
 function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, mainColor, fillColor, axisColor, fontColor, tickMax, tickStep, isRight) {
   destroyChart(canvasId);
   const fingerNums = isRight ? RH_ORDER.map(i => i + 1) : LH_ORDER.map(i => i + 1);
-  const labels = fingerNums.map(n => `指${n}`);
+  const labels = fingerNums.map(n => `F${n}`);
 
   const meanR  = reorderForHand(valuesMean, isRight);
   const stdR   = reorderForHand(valuesStd,  isRight);
@@ -715,9 +715,9 @@ function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, main
         { label: '±σ',  data: minus1s, fill: '+1', borderColor: 'transparent', borderWidth: 0, backgroundColor: fillColor + '65', pointRadius: 0 },
         { label: '',     data: plus1s,  fill: false, borderColor: mainColor + 'aa', borderWidth: 1.2, backgroundColor: 'transparent', pointRadius: 0 },
         // mean
-        { label: '平均', data: meanR,  fill: false, borderColor: mainColor, borderWidth: 2.5, backgroundColor: 'transparent', pointBackgroundColor: axisColor, pointBorderColor: '#fff', pointBorderWidth: 1.5, pointRadius: 5 },
+        { label: 'Mean', data: meanR,  fill: false, borderColor: mainColor, borderWidth: 2.5, backgroundColor: 'transparent', pointBackgroundColor: axisColor, pointBorderColor: '#fff', pointBorderWidth: 1.5, pointRadius: 5 },
         // ideal
-        { label: '理想', data: new Array(5).fill(idealValue), fill: false, borderColor: fontColor + 'aa', borderDash: [5, 4], borderWidth: 1.6, backgroundColor: 'transparent', pointRadius: 0 },
+        { label: 'Ideal', data: new Array(5).fill(idealValue), fill: false, borderColor: fontColor + 'aa', borderDash: [5, 4], borderWidth: 1.6, backgroundColor: 'transparent', pointRadius: 0 },
       ]
     },
     options: {
@@ -806,7 +806,7 @@ function showDebug(text) {
     el.style.cssText = 'background:#f0f4ff;border:1px solid #b0c4ff;border-radius:0.5rem;padding:0.75rem 1rem;font-size:0.78rem;color:#334;max-width:900px;margin:0 auto 1rem;white-space:pre-wrap;word-break:break-all;';
     document.getElementById('errorMsg').insertAdjacentElement('afterend', el);
   }
-  el.textContent = '🔍 診断情報\n' + text;
+  el.textContent = '🔍 Debug Info\n' + text;
 }
 
 async function analyze() {
@@ -819,14 +819,14 @@ async function analyze() {
   document.getElementById('analyzeBtn').disabled = true;
 
   try {
-    if (!midiBuffer) throw new Error('MIDIファイルを選択してください。');
-    if (!scoresData) throw new Error('楽譜データの読み込みに失敗しました。');
+    if (!midiBuffer) throw new Error('Please select a MIDI file.');
+    if (!scoresData) throw new Error('Failed to load score data.');
 
     const hanonNum = parseInt(document.getElementById('hanonNum').value);
-    if (isNaN(hanonNum) || hanonNum < 1 || hanonNum > 20) throw new Error('ハノン番号は1〜20で入力してください。');
+    if (isNaN(hanonNum) || hanonNum < 1 || hanonNum > 20) throw new Error('Hanon number must be between 1 and 20.');
 
     const scoreRaw = scoresData[String(hanonNum)];
-    if (!scoreRaw) throw new Error(`ハノン${hanonNum}番の楽譜データが見つかりません。`);
+    if (!scoreRaw) throw new Error(`Score data not found for Hanon No. ${hanonNum}.`);
 
     // Parse MIDI
     const { notes: midiNotes, bpm: detectedBpm } = parseMidi(midiBuffer);
@@ -856,16 +856,16 @@ async function analyze() {
 
     // Debug panel
     const dbg = [
-      `MIDIノート数: ${midiNotes.length}`,
-      `検出BPM: ${detectedBpm.toFixed(1)}　使用BPM: ${bpm.toFixed(1)}`,
-      `MIDI先頭3音: ${midiNorm.slice(0,3).map(n=>`pitch=${n.pitch} t=${n.time.toFixed(3)}`).join(' / ')}`,
-      `スコア先頭3音: ${scoreNotes.slice(0,3).map(n=>`pitch=${n.pitch} onset=${n.onset.toFixed(3)}`).join(' / ')}`,
-      `最良シフト: ${bestShift?.toFixed(2)}s　シフト時マッチ数: ${bestCount}`,
-      `最終マッチ数: ${matches.length} / ${scoreNotes.length}`,
+      `MIDI notes: ${midiNotes.length}`,
+      `Detected BPM: ${detectedBpm.toFixed(1)}  Used BPM: ${bpm.toFixed(1)}`,
+      `MIDI first 3: ${midiNorm.slice(0,3).map(n=>`pitch=${n.pitch} t=${n.time.toFixed(3)}`).join(' / ')}`,
+      `Score first 3: ${scoreNotes.slice(0,3).map(n=>`pitch=${n.pitch} onset=${n.onset.toFixed(3)}`).join(' / ')}`,
+      `Best shift: ${bestShift?.toFixed(2)}s  Matches at shift: ${bestCount}`,
+      `Final matches: ${matches.length} / ${scoreNotes.length}`,
     ].join('\n');
     showDebug(dbg);
 
-    if (matches.length === 0) throw new Error('マッチするノートが見つかりませんでした。ハノン番号やテンポを確認してください。');
+    if (matches.length === 0) throw new Error('No matching notes found. Check the Hanon number and tempo.');
 
     // Compute stats
     const { stats, ioi } = computeStats(matches);
@@ -874,19 +874,19 @@ async function analyze() {
     const total = scoreNotes.length;
     const matched = matches.length;
     document.getElementById('statsRow').innerHTML = `
-      <div class="stat-chip"><div class="val">${matched} / ${total}</div><div class="lbl">マッチ</div></div>
-      <div class="stat-chip"><div class="val">${extra}</div><div class="lbl">余分な音 (EXTRA)</div></div>
-      <div class="stat-chip"><div class="val">${missing}</div><div class="lbl">抜け (MISSING)</div></div>
-      <div class="stat-chip"><div class="val">${bpm.toFixed(0)}</div><div class="lbl">テンポ BPM</div></div>
+      <div class="stat-chip"><div class="val">${matched} / ${total}</div><div class="lbl">Matched</div></div>
+      <div class="stat-chip"><div class="val">${extra}</div><div class="lbl">Extra</div></div>
+      <div class="stat-chip"><div class="val">${missing}</div><div class="lbl">Missing</div></div>
+      <div class="stat-chip"><div class="val">${bpm.toFixed(0)}</div><div class="lbl">BPM</div></div>
     `;
     document.getElementById('ioiRow').innerHTML = `
       <div class="ioi-card rh">
         <div class="ioi-val">${(ioi[0].cv * 100).toFixed(1)}%</div>
-        <div class="ioi-lbl">右手 IOI ばらつき</div>
+        <div class="ioi-lbl">Right Hand IOI CV</div>
       </div>
       <div class="ioi-card lh">
         <div class="ioi-val">${(ioi[1].cv * 100).toFixed(1)}%</div>
-        <div class="ioi-lbl">左手 IOI ばらつき</div>
+        <div class="ioi-lbl">Left Hand IOI CV</div>
       </div>
     `;
 
@@ -896,24 +896,24 @@ async function analyze() {
     const ldStd   = fingersFor(stats, 1, s => s.durStd);
     const rdMean  = fingersFor(stats, 0, s => s.durMean);
     const rdStd   = fingersFor(stats, 0, s => s.durStd);
-    makeRadarChart('chartLD', '左手 Duration', ldMean, ldStd, 0.25, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, false);
-    makeRadarChart('chartRD', '右手 Duration', rdMean, rdStd, 0.25, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, true);
+    makeRadarChart('chartLD', 'Left Hand Duration', ldMean, ldStd, 0.25, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, false);
+    makeRadarChart('chartRD', 'Right Hand Duration', rdMean, rdStd, 0.25, '#90caf9', '#bbdefb', '#64b5f6', '#1565c0', 0.5, 0.1, true);
 
     // Velocity On (0–127, ideal=80)
     const lvMean  = fingersFor(stats, 1, s => s.velMean);
     const lvStd   = fingersFor(stats, 1, s => s.velStd);
     const rvMean  = fingersFor(stats, 0, s => s.velMean);
     const rvStd   = fingersFor(stats, 0, s => s.velStd);
-    makeRadarChart('chartLV', '左手 Velocity On', lvMean, lvStd, 80, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, false);
-    makeRadarChart('chartRV', '右手 Velocity On', rvMean, rvStd, 80, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, true);
+    makeRadarChart('chartLV', 'Left Hand Velocity On', lvMean, lvStd, 80, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, false);
+    makeRadarChart('chartRV', 'Right Hand Velocity On', rvMean, rvStd, 80, '#f48fb1', '#f8bbd0', '#f06292', '#ad1457', 127, 20, true);
 
     // Velocity Off (0–127, ideal=80)
     const lvoffMean = fingersFor(stats, 1, s => s.velOffMean);
     const lvoffStd  = fingersFor(stats, 1, s => s.velOffStd);
     const rvoffMean = fingersFor(stats, 0, s => s.velOffMean);
     const rvoffStd  = fingersFor(stats, 0, s => s.velOffStd);
-    makeRadarChart('chartLVoff', '左手 Velocity Off', lvoffMean, lvoffStd, 80, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, false);
-    makeRadarChart('chartRVoff', '右手 Velocity Off', rvoffMean, rvoffStd, 80, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, true);
+    makeRadarChart('chartLVoff', 'Left Hand Velocity Off', lvoffMean, lvoffStd, 80, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, false);
+    makeRadarChart('chartRVoff', 'Right Hand Velocity Off', rvoffMean, rvoffStd, 80, '#a5d6a7', '#c8e6c9', '#81c784', '#2e7d32', 127, 20, true);
 
     // Show panels
     setVisible('statsPanel', true);
@@ -930,7 +930,7 @@ async function analyze() {
 }
 
 // Load scores on startup
-loadScores().catch(() => showError('楽譜データ (data/scores.json) の読み込みに失敗しました。ローカルで開く場合は HTTP サーバー経由でアクセスしてください。'));
+loadScores().catch(() => showError('Failed to load score data (data/scores.json). When running locally, use an HTTP server instead of opening the file directly.'));
 </script>
 </body>
 </html>
