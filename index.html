@@ -686,29 +686,38 @@ function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, main
   const fingerNums = isRight ? RH_ORDER.map(i => i + 1) : LH_ORDER.map(i => i + 1);
   const labels = fingerNums.map(n => `指${n}`);
 
-  const meanR   = reorderForHand(valuesMean, isRight);
-  const stdR    = reorderForHand(valuesStd,  isRight);
-  const clamp   = (v) => Math.max(0, Math.min(tickMax, v));
-  const minus2s = meanR.map((m, i) => clamp(m - 2 * stdR[i]));
-  const minus1s = meanR.map((m, i) => clamp(m - stdR[i]));
-  const plus1s  = meanR.map((m, i) => clamp(m + stdR[i]));
-  const plus2s  = meanR.map((m, i) => clamp(m + 2 * stdR[i]));
+  const meanR  = reorderForHand(valuesMean, isRight);
+  const stdR   = reorderForHand(valuesStd,  isRight);
+  // Floor the inner bounds at 2 % of axis to prevent vertices from
+  // collapsing to the chart center (which causes wedge-shaped fills).
+  const floor  = tickMax * 0.02;
+  const minus2s = meanR.map((m, i) => Math.max(floor, m - 2 * stdR[i]));
+  const minus1s = meanR.map((m, i) => Math.max(floor, m - stdR[i]));
+  const plus1s  = meanR.map((m, i) => Math.min(tickMax, m + stdR[i]));
+  const plus2s  = meanR.map((m, i) => Math.min(tickMax, m + 2 * stdR[i]));
 
-  // 5 lines: −2σ / −σ / mean / +σ / +2σ  (no fill — avoids Chart.js radar fill quirks)
-  // Legend shows only the "first of each pair" labels; outer boundaries are hidden.
-  const thin  = { borderWidth: 1.0, pointRadius: 0, fill: false, backgroundColor: 'transparent' };
-  const thinn = { borderWidth: 1.5, pointRadius: 0, fill: false, backgroundColor: 'transparent' };
+  // Dataset order (fill: '+1' fills between this dataset and the next):
+  //   [0] minus2s → fill '+1' → outer ring between −2σ and +2σ (light)
+  //   [1] plus2s  → no fill
+  //   [2] minus1s → fill '+1' → inner ring between −1σ and +1σ (darker)
+  //   [3] plus1s  → no fill
+  //   [4] mean    → no fill → bold mean line
+  //   [5] ideal   → no fill → dashed ideal line
   chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
     type: 'radar',
     data: {
       labels,
       datasets: [
-        { label: '±2σ', data: minus2s, ...thin,  borderColor: mainColor + '55', borderDash: [3, 3] },
-        { label: '±σ',  data: minus1s, ...thinn, borderColor: mainColor + '99', borderDash: [5, 3] },
-        { label: '平均', data: meanR,  fill: false, backgroundColor: 'transparent', borderColor: mainColor, borderWidth: 2.5, pointBackgroundColor: axisColor, pointBorderColor: '#fff', pointBorderWidth: 1.5, pointRadius: 5 },
-        { label: '',     data: plus1s,  ...thinn, borderColor: mainColor + '99', borderDash: [5, 3] },
-        { label: '',     data: plus2s,  ...thin,  borderColor: mainColor + '55', borderDash: [3, 3] },
-        { label: '理想', data: new Array(5).fill(idealValue), fill: false, backgroundColor: 'transparent', borderColor: fontColor + 'aa', borderDash: [5, 4], borderWidth: 1.6, pointRadius: 0 },
+        // ±2σ outer band
+        { label: '±2σ', data: minus2s, fill: '+1', borderColor: 'transparent', borderWidth: 0, backgroundColor: fillColor + '30', pointRadius: 0 },
+        { label: '',     data: plus2s,  fill: false, borderColor: mainColor + '55', borderWidth: 0.8, backgroundColor: 'transparent', pointRadius: 0 },
+        // ±1σ inner band (rendered on top)
+        { label: '±σ',  data: minus1s, fill: '+1', borderColor: 'transparent', borderWidth: 0, backgroundColor: fillColor + '65', pointRadius: 0 },
+        { label: '',     data: plus1s,  fill: false, borderColor: mainColor + 'aa', borderWidth: 1.2, backgroundColor: 'transparent', pointRadius: 0 },
+        // mean
+        { label: '平均', data: meanR,  fill: false, borderColor: mainColor, borderWidth: 2.5, backgroundColor: 'transparent', pointBackgroundColor: axisColor, pointBorderColor: '#fff', pointBorderWidth: 1.5, pointRadius: 5 },
+        // ideal
+        { label: '理想', data: new Array(5).fill(idealValue), fill: false, borderColor: fontColor + 'aa', borderDash: [5, 4], borderWidth: 1.6, backgroundColor: 'transparent', pointRadius: 0 },
       ]
     },
     options: {
