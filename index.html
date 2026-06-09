@@ -796,12 +796,12 @@ function renderScore(hanonNum) {
   const lhNotes = raw.filter(n => n[0] === 1).map(n => ({ pitch: n[1], time: n[2], dur: n[3], finger: n[4] }));
 
   const maxTime = Math.max(...raw.map(n => n[2]));
-  const numMeasures = Math.ceil((maxTime + 0.01) / 4) || 1;
+  const numMeasures = Math.ceil((maxTime + 0.01) / 2) || 1;
 
   function groupByMeasure(notes, total) {
     const ms = Array.from({ length: total }, () => []);
     for (const n of notes) {
-      const mi = Math.floor(n.time / 4);
+      const mi = Math.floor(n.time / 2);
       if (mi < total) ms[mi].push(n);
     }
     return ms;
@@ -862,11 +862,11 @@ function renderScore(hanonNum) {
       const fmtW = w - (isFirst ? 75 : 22);
 
       const tStave = new VF.Stave(x, rowY + T_Y, w);
-      if (isFirst) { tStave.addClef('treble'); if (row === 0) tStave.addTimeSignature('4/4'); }
+      if (isFirst) { tStave.addClef('treble'); if (row === 0) tStave.addTimeSignature('2/4'); }
       tStave.setContext(ctx).draw();
 
       const bStave = new VF.Stave(x, rowY + B_Y, w);
-      if (isFirst) { bStave.addClef('bass'); if (row === 0) bStave.addTimeSignature('4/4'); }
+      if (isFirst) { bStave.addClef('bass'); if (row === 0) bStave.addTimeSignature('2/4'); }
       bStave.setContext(ctx).draw();
 
       if (isFirst) {
@@ -878,7 +878,7 @@ function renderScore(hanonNum) {
       if (rhMs.length > 0) {
         const vNotes = buildNotes(rhMs, true);
         const beams  = VF.Beam.generateBeams(vNotes);
-        const voice  = new VF.Voice({ num_beats: 4, beat_value: 4 });
+        const voice  = new VF.Voice({ num_beats: 2, beat_value: 4 });
         voice.setMode(VF.Voice.Mode.SOFT);
         voice.addTickables(vNotes);
         new VF.Formatter().joinVoices([voice]).format([voice], fmtW);
@@ -890,7 +890,7 @@ function renderScore(hanonNum) {
       if (lhMs.length > 0) {
         const vNotes = buildNotes(lhMs, false);
         const beams  = VF.Beam.generateBeams(vNotes);
-        const voice  = new VF.Voice({ num_beats: 4, beat_value: 4 });
+        const voice  = new VF.Voice({ num_beats: 2, beat_value: 4 });
         voice.setMode(VF.Voice.Mode.SOFT);
         voice.addTickables(vNotes);
         new VF.Formatter().joinVoices([voice]).format([voice], fmtW);
