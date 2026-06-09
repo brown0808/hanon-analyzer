@@ -677,56 +677,36 @@ function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, main
   const fingerNums = isRight ? RH_ORDER.map(i => i + 1) : LH_ORDER.map(i => i + 1);
   const labels = fingerNums.map(n => `指${n}`);
 
-  const meanR  = reorderForHand(valuesMean, isRight);
-  const stdR   = reorderForHand(valuesStd,  isRight);
-  const plus1s = meanR.map((m, i) => Math.min(tickMax, m + stdR[i]));
-  const plus2s = meanR.map((m, i) => Math.min(tickMax, m + 2 * stdR[i]));
+  const meanR   = reorderForHand(valuesMean, isRight);
+  const stdR    = reorderForHand(valuesStd,  isRight);
+  // Clamp within [0, tickMax]
+  const minus2s = meanR.map((m, i) => Math.max(0, m - 2 * stdR[i]));
+  const minus1s = meanR.map((m, i) => Math.max(0, m - stdR[i]));
+  const plus1s  = meanR.map((m, i) => Math.min(tickMax, m + stdR[i]));
+  const plus2s  = meanR.map((m, i) => Math.min(tickMax, m + 2 * stdR[i]));
 
+  // Dataset order (for fill: '+1' = fill between this dataset and the next one):
+  //   [0] minus2s  → fill: '+1' → fills ring between -2σ and +2σ
+  //   [1] plus2s   → no fill
+  //   [2] minus1s  → fill: '+1' → fills ring between -1σ and +1σ
+  //   [3] plus1s   → no fill
+  //   [4] mean     → no fill (just the bold line)
+  //   [5] ideal    → no fill (dashed)
   chartInstances[canvasId] = new Chart(document.getElementById(canvasId), {
     type: 'radar',
     data: {
       labels,
       datasets: [
-        {
-          label: '平均+2σ',
-          data: plus2s,
-          borderColor: mainColor + '55',
-          backgroundColor: fillColor + '28',
-          borderWidth: 1,
-          pointRadius: 0,
-          fill: 'origin',
-        },
-        {
-          label: '平均+σ',
-          data: plus1s,
-          borderColor: mainColor + '99',
-          backgroundColor: fillColor + '50',
-          borderWidth: 1.5,
-          pointRadius: 0,
-          fill: 'origin',
-        },
-        {
-          label: '平均',
-          data: meanR,
-          borderColor: mainColor,
-          backgroundColor: fillColor + '80',
-          borderWidth: 2.5,
-          pointBackgroundColor: axisColor,
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1.5,
-          pointRadius: 5,
-          fill: 'origin',
-        },
-        {
-          label: '理想',
-          data: new Array(5).fill(idealValue),
-          borderColor: fontColor + 'aa',
-          borderDash: [5, 4],
-          borderWidth: 1.6,
-          pointRadius: 0,
-          backgroundColor: 'transparent',
-          fill: false,
-        }
+        // ±2σ band
+        { label: '±2σ',  data: minus2s, fill: '+1', borderColor: 'transparent', borderWidth: 0, backgroundColor: fillColor + '30', pointRadius: 0 },
+        { label: '',      data: plus2s,  fill: false, borderColor: mainColor + '66', borderWidth: 1, backgroundColor: 'transparent', pointRadius: 0 },
+        // ±1σ band (rendered on top, darker)
+        { label: '±σ',   data: minus1s, fill: '+1', borderColor: 'transparent', borderWidth: 0, backgroundColor: fillColor + '70', pointRadius: 0 },
+        { label: '',      data: plus1s,  fill: false, borderColor: mainColor + 'bb', borderWidth: 1.5, backgroundColor: 'transparent', pointRadius: 0 },
+        // Mean line
+        { label: '平均',  data: meanR,  fill: false, borderColor: mainColor, borderWidth: 2.5, backgroundColor: 'transparent', pointBackgroundColor: axisColor, pointBorderColor: '#fff', pointBorderWidth: 1.5, pointRadius: 5 },
+        // Ideal
+        { label: '理想',  data: new Array(5).fill(idealValue), fill: false, borderColor: fontColor + 'aa', borderDash: [5, 4], borderWidth: 1.6, backgroundColor: 'transparent', pointRadius: 0 },
       ]
     },
     options: {
@@ -758,6 +738,7 @@ function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, main
             font: { family: "'M PLUS Rounded 1c', sans-serif", size: 11 },
             boxWidth: 14,
             padding: 8,
+            filter: (item) => item.text !== '',
           }
         }
       }
