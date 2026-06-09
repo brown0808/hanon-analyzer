@@ -592,8 +592,17 @@ function cv(arr) {
 }
 
 function computeStats(matches) {
-  const groups = {};
+  // Remove the last note per hand (highest midiTime) to avoid long final holds
+  // skewing duration stats — mirrors Python's remove_last_notes() / --exclude-last.
+  const lastTimeByPart = {};
   for (const m of matches) {
+    if (lastTimeByPart[m.partId] === undefined || m.midiTime > lastTimeByPart[m.partId])
+      lastTimeByPart[m.partId] = m.midiTime;
+  }
+  const filtered = matches.filter(m => m.midiTime !== lastTimeByPart[m.partId]);
+
+  const groups = {};
+  for (const m of filtered) {
     const key = `${m.partId}_${m.finger}`;
     if (!groups[key]) groups[key] = { durations: [], velocities: [], velocitiesOff: [], times: [], partId: m.partId, finger: m.finger };
     groups[key].durations.push(m.midiDuration);
@@ -617,10 +626,10 @@ function computeStats(matches) {
     };
   }
 
-  // IOI per hand
+  // IOI per hand (also uses filtered to exclude final hold)
   const ioi = {};
   for (const partId of [0, 1]) {
-    const times = matches.filter(m => m.partId === partId).map(m => m.midiTime).sort((a, b) => a - b);
+    const times = filtered.filter(m => m.partId === partId).map(m => m.midiTime).sort((a, b) => a - b);
     if (times.length > 1) {
       const iois = times.slice(1).map((t, i) => t - times[i]);
       ioi[partId] = { mean: mean(iois), std: std(iois), cv: cv(iois) };
