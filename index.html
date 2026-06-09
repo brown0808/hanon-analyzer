@@ -478,26 +478,24 @@ function parseMidi(buffer) {
   }
   tempoMap.sort((a, b) => a.tick - b.tick);
 
-  // Use tempo at first note onset (handles count-in at different tempo)
+  // Use tempo at first note onset (handles count-in at different tempo).
+  // If no explicit tempo precedes the first note (DAW placed the marker late),
+  // fall back to the first explicit tempo event anywhere in the file.
   const firstNoteTick = allEvents.find(e => e.kind === 'on')?.tick || 0;
   let perfMicros = 500000;
   for (const entry of tempoMap) {
     if (entry.tick > firstNoteTick) break;
     perfMicros = entry.micros;
   }
+  if (perfMicros === 500000) {
+    const firstTempoEvent = allEvents.find(e => e.kind === 'tempo');
+    if (firstTempoEvent) perfMicros = Math.round(60000000 / firstTempoEvent.bpm);
+  }
   const detectedBpm = 60000000 / perfMicros;
 
-  function tickToSec(targetTick) {
-    let sec = 0, prevTick = 0, micros = 500000;
-    for (const entry of tempoMap) {
-      if (entry.tick > targetTick) break;
-      sec += (entry.tick - prevTick) * micros / ppq / 1e6;
-      prevTick = entry.tick;
-      micros = entry.micros;
-    }
-    sec += (targetTick - prevTick) * micros / ppq / 1e6;
-    return sec;
-  }
+  // Note times in beats (ticks / ppq) — tempo-independent, matching Python extract_notes.py.
+  // BPM is retained only for display purposes.
+  function tickToBeats(tick) { return tick / ppq; }
 
   // Build note list
   const pending = {};
@@ -513,12 +511,10 @@ function parseMidi(buffer) {
     } else {
       if (pending[key] && pending[key].length > 0) {
         const start = pending[key].shift();
-        const startSec = tickToSec(start.tick);
-        const endSec = tickToSec(e.tick);
         notes.push({
           pitch: e.pitch,
-          time: startSec,
-          duration: Math.max(0, endSec - startSec),
+          time: tickToBeats(start.tick),
+          duration: Math.max(0, tickToBeats(e.tick) - tickToBeats(start.tick)),
           velocity: start.vel,
           velocityOff: e.vel,
         });
@@ -533,7 +529,7 @@ function parseMidi(buffer) {
 // ============================================================
 // Score Matching (align_overlap port)
 // ============================================================
-function alignOverlap(midiNotes, scoreNotes, margin = 0.1) {
+function alignOverlap(midiNotes, scoreNotes, margin = 0.05) {
   const shiftMin = -2.0, shiftMax = 2.0, shiftStep = 0.05;
   let bestShift = 0, bestCount = -1;
 
@@ -992,14 +988,14 @@ async function analyze() {
 
     const userTempo = parseFloat(document.getElementById('tempoBpm').value);
     const bpm = (!isNaN(userTempo) && userTempo > 0) ? userTempo : detectedBpm;
-    const secPerBeat = 60 / bpm;
 
-    // Convert score notes to time in seconds
+    // Score notes in beats (same unit as MIDI notes from parseMidi).
+    // No BPM conversion needed — matching Python's beat-space alignment.
     const scoreNotes = scoreRaw.map(([partId, pitch, timeBeat, durBeat, finger]) => ({
       partId,
       pitch,
-      onset: timeBeat * secPerBeat,
-      offset: (timeBeat + durBeat) * secPerBeat,
+      onset: timeBeat,
+      offset: timeBeat + durBeat,
       finger,
     }));
 
