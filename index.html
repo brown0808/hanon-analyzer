@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Hanon Analyzer</title>
@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -288,6 +289,14 @@
     }
 
     .radar-canvas { width: 100% !important; display: block; }
+
+    #scoreContainer {
+      overflow-x: auto;
+      line-height: 0;
+    }
+    #scoreContainer svg {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -317,6 +326,12 @@
     </div>
     <button class="analyze-btn" id="analyzeBtn" disabled>Analyze</button>
   </div>
+</div>
+
+<!-- 楽譜パネル -->
+<div class="panel hidden" id="scorePanel">
+  <div class="section-title" id="scoreTitle">Score — Hanon No. 1</div>
+  <div id="scoreContainer"></div>
 </div>
 
 <!-- エラー表示 -->
@@ -759,6 +774,136 @@ function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, main
 
 
 // ============================================================
+// Score Display (VexFlow)
+// ============================================================
+function renderScore(hanonNum) {
+  const scorePanel = document.getElementById('scorePanel');
+  const container  = document.getElementById('scoreContainer');
+  container.innerHTML = '';
+
+  if (typeof Vex === 'undefined' || !scoresData || !scoresData[String(hanonNum)]) {
+    scorePanel.classList.add('hidden');
+    return;
+  }
+
+  document.getElementById('scoreTitle').textContent = `Score — Hanon No. ${hanonNum}`;
+  scorePanel.classList.remove('hidden');
+
+  const VF  = Vex.Flow;
+  const raw = scoresData[String(hanonNum)];
+
+  const rhNotes = raw.filter(n => n[0] === 0).map(n => ({ pitch: n[1], time: n[2], dur: n[3], finger: n[4] }));
+  const lhNotes = raw.filter(n => n[0] === 1).map(n => ({ pitch: n[1], time: n[2], dur: n[3], finger: n[4] }));
+
+  const maxTime = Math.max(...raw.map(n => n[2]));
+  const numMeasures = Math.ceil((maxTime + 0.01) / 4) || 1;
+
+  function groupByMeasure(notes, total) {
+    const ms = Array.from({ length: total }, () => []);
+    for (const n of notes) {
+      const mi = Math.floor(n.time / 4);
+      if (mi < total) ms[mi].push(n);
+    }
+    return ms;
+  }
+
+  const rhByM = groupByMeasure(rhNotes, numMeasures);
+  const lhByM = groupByMeasure(lhNotes, numMeasures);
+
+  const MEAS_PER_ROW = 4;
+  const numRows = Math.ceil(numMeasures / MEAS_PER_ROW);
+
+  const W_TOTAL = 840;
+  const W0 = 235;  // first measure of row: clef (+ time sig on row 0)
+  const WN = Math.floor((W_TOTAL - W0) / (MEAS_PER_ROW - 1));  // remaining measures
+  const T_Y = 25;    // treble stave Y offset within a row
+  const B_Y = 115;   // bass stave Y offset within a row
+  const ROW_H = 200; // row height
+
+  const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
+  renderer.resize(W_TOTAL, numRows * ROW_H + 20);
+  const ctx = renderer.getContext();
+
+  function midiToVexKey(pitch) {
+    const NAMES = ['c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#', 'a', 'a#', 'b'];
+    return NAMES[pitch % 12] + '/' + (Math.floor(pitch / 12) - 1);
+  }
+
+  function durBeatsToVex(d) {
+    if (d >= 3.75) return 'w';
+    if (d >= 1.75) return 'h';
+    if (d >= 0.875) return 'q';
+    if (d >= 0.4) return '8';
+    return '16';
+  }
+
+  function buildNotes(mnotes, isRH) {
+    return mnotes.map(n => {
+      const vk  = midiToVexKey(n.pitch);
+      const dur = durBeatsToVex(n.dur);
+      const sn  = new VF.StaveNote({ keys: [vk], duration: dur, clef: isRH ? 'treble' : 'bass' });
+      const noteName = vk.split('/')[0];
+      if (noteName.endsWith('#')) sn.addModifier(new VF.Accidental('#'), 0);
+      else if (noteName.endsWith('b') && noteName.length > 1) sn.addModifier(new VF.Accidental('b'), 0);
+      sn.addModifier(new VF.Annotation(String(n.finger)), 0);
+      return sn;
+    });
+  }
+
+  for (let row = 0; row < numRows; row++) {
+    const rowY  = row * ROW_H;
+    const mStart = row * MEAS_PER_ROW;
+    const mEnd   = Math.min(mStart + MEAS_PER_ROW, numMeasures);
+
+    let x = 0;
+    for (let mi = mStart; mi < mEnd; mi++) {
+      const isFirst = (mi === mStart);
+      const w = isFirst ? W0 : WN;
+      const fmtW = w - (isFirst ? 75 : 22);
+
+      const tStave = new VF.Stave(x, rowY + T_Y, w);
+      if (isFirst) { tStave.addClef('treble'); if (row === 0) tStave.addTimeSignature('4/4'); }
+      tStave.setContext(ctx).draw();
+
+      const bStave = new VF.Stave(x, rowY + B_Y, w);
+      if (isFirst) { bStave.addClef('bass'); if (row === 0) bStave.addTimeSignature('4/4'); }
+      bStave.setContext(ctx).draw();
+
+      if (isFirst) {
+        new VF.StaveConnector(tStave, bStave).setType(3).setContext(ctx).draw(); // BRACE
+        new VF.StaveConnector(tStave, bStave).setType(1).setContext(ctx).draw(); // SINGLE_LEFT
+      }
+
+      const rhMs = rhByM[mi] || [];
+      if (rhMs.length > 0) {
+        const vNotes = buildNotes(rhMs, true);
+        const beams  = VF.Beam.generateBeams(vNotes);
+        const voice  = new VF.Voice({ num_beats: 4, beat_value: 4 });
+        voice.setMode(VF.Voice.Mode.SOFT);
+        voice.addTickables(vNotes);
+        new VF.Formatter().joinVoices([voice]).format([voice], fmtW);
+        voice.draw(ctx, tStave);
+        beams.forEach(b => b.setContext(ctx).draw());
+      }
+
+      const lhMs = lhByM[mi] || [];
+      if (lhMs.length > 0) {
+        const vNotes = buildNotes(lhMs, false);
+        const beams  = VF.Beam.generateBeams(vNotes);
+        const voice  = new VF.Voice({ num_beats: 4, beat_value: 4 });
+        voice.setMode(VF.Voice.Mode.SOFT);
+        voice.addTickables(vNotes);
+        new VF.Formatter().joinVoices([voice]).format([voice], fmtW);
+        voice.draw(ctx, bStave);
+        beams.forEach(b => b.setContext(ctx).draw());
+      }
+
+      x += w;
+    }
+  }
+}
+
+// ============================================================
 // UI Logic
 // ============================================================
 let midiBuffer = null;
@@ -783,6 +928,10 @@ document.getElementById('midiFile').addEventListener('change', function () {
 });
 
 document.getElementById('analyzeBtn').addEventListener('click', analyze);
+document.getElementById('hanonNum').addEventListener('input', function () {
+  const n = parseInt(this.value);
+  if (!isNaN(n) && n >= 1 && n <= 20) renderScore(n);
+});
 
 function setVisible(id, visible) {
   document.getElementById(id).classList.toggle('hidden', !visible);
@@ -929,8 +1078,10 @@ async function analyze() {
   }
 }
 
-// Load scores on startup
-loadScores().catch(() => showError('Failed to load score data (data/scores.json). When running locally, use an HTTP server instead of opening the file directly.'));
+// Load scores on startup, then render default score
+loadScores()
+  .then(() => renderScore(parseInt(document.getElementById('hanonNum').value) || 1))
+  .catch(() => showError('Failed to load score data (data/scores.json). When running locally, use an HTTP server instead of opening the file directly.'));
 </script>
 </body>
 </html>
