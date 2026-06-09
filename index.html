@@ -779,7 +779,6 @@ function makeRadarChart(canvasId, title, valuesMean, valuesStd, idealValue, main
 function renderScore(hanonNum) {
   const scorePanel = document.getElementById('scorePanel');
   const container  = document.getElementById('scoreContainer');
-  container.innerHTML = '';
 
   if (typeof Vex === 'undefined' || !scoresData || !scoresData[String(hanonNum)]) {
     scorePanel.classList.add('hidden');
@@ -787,7 +786,8 @@ function renderScore(hanonNum) {
   }
 
   document.getElementById('scoreTitle').textContent = `Score — Hanon No. ${hanonNum}`;
-  scorePanel.classList.remove('hidden');
+  scorePanel.classList.remove('hidden');  // show first so clientWidth is valid
+  container.innerHTML = '';
 
   const VF  = Vex.Flow;
   const raw = scoresData[String(hanonNum)];
@@ -813,12 +813,13 @@ function renderScore(hanonNum) {
   const MEAS_PER_ROW = 4;
   const numRows = Math.ceil(numMeasures / MEAS_PER_ROW);
 
-  const W_TOTAL = 840;
-  const W0 = 235;  // first measure of row: clef (+ time sig on row 0)
-  const WN = Math.floor((W_TOTAL - W0) / (MEAS_PER_ROW - 1));  // remaining measures
-  const T_Y = 25;    // treble stave Y offset within a row
-  const B_Y = 115;   // bass stave Y offset within a row
-  const ROW_H = 200; // row height
+  // Use actual container width; clientWidth forces reflow after classList change
+  const W_TOTAL = container.clientWidth > 100 ? container.clientWidth : 840;
+  const W0 = Math.floor(W_TOTAL * 0.28);                              // first measure (~28%): clef + time sig
+  const WN = Math.floor((W_TOTAL - W0) / (MEAS_PER_ROW - 1));        // remaining measures
+  const T_Y = 25;
+  const B_Y = 115;
+  const ROW_H = 200;
 
   const renderer = new VF.Renderer(container, VF.Renderer.Backends.SVG);
   renderer.resize(W_TOTAL, numRows * ROW_H + 20);
@@ -851,7 +852,7 @@ function renderScore(hanonNum) {
   }
 
   for (let row = 0; row < numRows; row++) {
-    const rowY  = row * ROW_H;
+    const rowY   = row * ROW_H;
     const mStart = row * MEAS_PER_ROW;
     const mEnd   = Math.min(mStart + MEAS_PER_ROW, numMeasures);
 
@@ -859,14 +860,18 @@ function renderScore(hanonNum) {
     for (let mi = mStart; mi < mEnd; mi++) {
       const isFirst = (mi === mStart);
       const w = isFirst ? W0 : WN;
-      const fmtW = w - (isFirst ? 75 : 22);
 
+      // Build staves with modifiers first, then read noteStartX for exact format width
       const tStave = new VF.Stave(x, rowY + T_Y, w);
       if (isFirst) { tStave.addClef('treble'); if (row === 0) tStave.addTimeSignature('2/4'); }
-      tStave.setContext(ctx).draw();
 
       const bStave = new VF.Stave(x, rowY + B_Y, w);
       if (isFirst) { bStave.addClef('bass'); if (row === 0) bStave.addTimeSignature('2/4'); }
+
+      // getNoteStartX() is valid after modifiers are added, before draw
+      const fmtW = w - (tStave.getNoteStartX() - x) - 5;
+
+      tStave.setContext(ctx).draw();
       bStave.setContext(ctx).draw();
 
       if (isFirst) {
